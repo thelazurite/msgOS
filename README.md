@@ -1,3 +1,3 @@
-# msgOs.Core
+# msgOS.Core
 The Core of msgOS  (Kernel+Chika)
 
