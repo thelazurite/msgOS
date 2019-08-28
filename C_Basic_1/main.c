@@ -89,6 +89,39 @@ static token_t tokens[28] = {
     { "call",       0xFF }
 };
 
+void create_next_form(int indent, form_t** currForm){
+    (*currForm)->next = malloc(sizeof(form_t));
+    (*currForm)->next->prev = (*currForm);
+    (*currForm)->next->type = &types[0];
+    printf("%s", (*currForm)->next->type->token);
+    (*currForm)->next->id = &currFormId;
+    (*currForm)->next->formName = malloc(sizeof(char*));
+    (*currForm)->next->params = malloc(sizeof(param_t));
+    (*currForm)->next->childFormId = malloc(sizeof(child_t));
+    
+//    if(indent > 0) {
+//        
+//        
+//        if((*currForm)->childFormId == NULL){
+//            (*currForm)->childFormId = malloc(sizeof(child_t));
+//            (*currForm)->childFormId->prev = NULL;
+//            memcpy((*currForm)->childFormId->childId, (*currForm)->next->id, sizeof(uint8_t));
+//        } else { 
+//            child_t* currChild = (*currForm)->childFormId;
+//            while(currChild->next != NULL){
+//                currChild = currChild->next;
+//            }
+//            currChild->next = malloc(sizeof(child_t));
+//            currChild->next->prev = currChild;
+//            memcpy(currChild->next->childId, (*currForm)->next->id, sizeof(uint8_t));
+//        }
+//    }
+    
+    (*currForm) = (*currForm)->next;
+    
+    ++currFormId;
+}
+
 int form_representation(){
     bool read = true;
     item_char* iter = data;
@@ -97,6 +130,8 @@ int form_representation(){
     bool lookParam = false;
     int indent = 0; 
 
+    uint8_t* returnToId = 0x00;
+    bool first = true;
     
     char* ch = malloc(sizeof(char*));
     
@@ -122,13 +157,33 @@ int form_representation(){
            lookForm = true;
            lookParam = false;
            
-           ++indent;
+            ++indent;
+
+           if(!first){
+              if(currForm->next == NULL){
+                  
+                  create_next_form(indent, &currForm);
+              } else {
+                  memcpy(returnToId, currForm->id, sizeof(uint8_t));
+                  while(currForm->next != NULL){
+                      currForm = currForm->next;
+                  }
+                  create_next_form(indent, &currForm);
+              }
+           } else {
+              first = false;
+           }
         }
         if(endForm){
             --indent;
 
             if(indent >= 1)
                 lookParam = true;
+            
+            else if(indent < 0) {
+                printf("Unexpected closure");
+                return -1;
+            }
         }
         
         if(iter->next == NULL){
@@ -159,8 +214,11 @@ int form_representation(){
                 ch = malloc(sizeof(char*));
             }
         } else if(lookParam) {
+            // reading a parameter that isn't const text.
             bool rdp = !whiteSpace && !endForm && !startForm;
+            // double quote
             bool dbq = strcmp("\"",iter->value) == 0;
+            // single quote
             bool sgq = strcmp("'", iter->value) == 0;
                      
             if(dbq || sgq){ 
@@ -180,7 +238,7 @@ int form_representation(){
                         }
                     }
                     else if(cCurr->next == NULL) {
-                        // const value not closed... 
+                        printf("\nE: Const value was not closed\n");
                         free(ch);
                         return -1;
                     }
@@ -290,7 +348,7 @@ int main(int argc, char* argv[]) {
 //        }
 
         int result = analyze_file("./example1.ch");//argv[i]);
-        printf("CompileStatus: %i\n", result);
+        printf("\nCompileStatus: %i\n", result);
         item_char* curr = data;
         while(curr) {
             if(curr->previous != NULL)
