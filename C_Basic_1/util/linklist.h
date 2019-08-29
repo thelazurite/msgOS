@@ -34,6 +34,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+    #include <stdlib.h>
+    #include <stdint.h>
     
     typedef struct item { 
         struct item * previous; 
@@ -43,6 +45,15 @@ extern "C" {
 
     item_char* add(item_char* head, char * value);
     item_char* delete(item_char* value);
+    
+    typedef struct item_uint { 
+        struct item * previous; 
+        uint8_t * value;
+        struct item * next; 
+    } item_t;
+
+    item_t* add_t(item_t* head, uint8_t * value);
+    item_t* delete_t(uint8_t* value, item_t * head);
     item_char* find(char* value);
     
 

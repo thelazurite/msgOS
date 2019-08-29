@@ -45,6 +45,7 @@ static int lookup = 0;
 static item_char * data;
 
 static form_t * forms; 
+static form_t * currForm;
 
 static token_t types[9] = {
     { "FORM",       0x00 },
@@ -89,35 +90,41 @@ static token_t tokens[28] = {
     { "call",       0xFF }
 };
 
-void create_next_form(int indent, form_t** currForm){
-    (*currForm)->next = malloc(sizeof(form_t));
-    (*currForm)->next->prev = (*currForm);
-    (*currForm)->next->type = &types[0];
-    printf("%s", (*currForm)->next->type->token);
-    (*currForm)->next->id = &currFormId;
-    (*currForm)->next->formName = malloc(sizeof(char*));
-    (*currForm)->next->params = malloc(sizeof(param_t));
-    (*currForm)->next->childFormId = malloc(sizeof(child_t));
+void create_next_form(int * indent){
+    // initialises the new form.
+    printf("\ncreating a form\n");
+    currForm->next = malloc(sizeof(form_t));
+    currForm->next->prev = currForm;
+    currForm->next->type = &types[0];
+    printf("%s", currForm->next->type->token);
+    currForm->next->id = &currFormId;
+    currForm->next->formName = malloc(sizeof(char*));
+    currForm->next->params = malloc(sizeof(param_t));
     
-//    if(indent > 0) {
-//        
-//        
-//        if((*currForm)->childFormId == NULL){
-//            (*currForm)->childFormId = malloc(sizeof(child_t));
-//            (*currForm)->childFormId->prev = NULL;
-//            memcpy((*currForm)->childFormId->childId, (*currForm)->next->id, sizeof(uint8_t));
-//        } else { 
-//            child_t* currChild = (*currForm)->childFormId;
-//            while(currChild->next != NULL){
-//                currChild = currChild->next;
-//            }
-//            currChild->next = malloc(sizeof(child_t));
-//            currChild->next->prev = currChild;
-//            memcpy(currChild->next->childId, (*currForm)->next->id, sizeof(uint8_t));
-//        }
-//    }
+    // order the children. 
+    if(indent > 0) {
+        // check if this is the first child.
+        if(currForm->childForm == NULL){
+            printf("hit");
+
+            currForm->childForm = malloc(sizeof(child_t));
+            currForm->childForm->prev = NULL;
+            currForm->childForm->id = malloc(sizeof(uint8_t));
+            memcpy(currForm->childForm->id, currForm->next->id, sizeof(uint8_t));
+        } else { 
+            child_t* currChild = currForm->childForm;
+            
+            while(currChild->next != NULL){
+                currChild = currChild->next;
+            }
+            
+            currChild->next = malloc(sizeof(child_t));
+            currChild->next->prev = currChild;
+            memcpy(currChild->next->id, currForm->next->id, sizeof(uint8_t));
+        }
+    }
     
-    (*currForm) = (*currForm)->next;
+    currForm = currForm->next;
     
     ++currFormId;
 }
@@ -128,9 +135,9 @@ int form_representation(){
     
     bool lookForm = false;
     bool lookParam = false;
-    int indent = 0; 
+    int *  indent = 0; 
 
-    uint8_t* returnToId = 0x00;
+    item_t* idt;
     bool first = true;
     
     char* ch = malloc(sizeof(char*));
@@ -142,10 +149,9 @@ int form_representation(){
     forms->id = &currFormId;
     forms->formName = malloc(sizeof(char*));
     forms->params = malloc(sizeof(param_t));
-    forms->childFormId = malloc(sizeof(child_t));
     ++currFormId;
     
-    form_t  * currForm = forms;
+    currForm = forms;
     param_t * param = forms->params;
     
     while(read == true) {
@@ -157,27 +163,37 @@ int form_representation(){
            lookForm = true;
            lookParam = false;
            
-            ++indent;
-
            if(!first){
-              if(currForm->next == NULL){
-                  
-                  create_next_form(indent, &currForm);
-              } else {
-                  memcpy(returnToId, currForm->id, sizeof(uint8_t));
-                  while(currForm->next != NULL){
-                      currForm = currForm->next;
-                  }
-                  create_next_form(indent, &currForm);
-              }
+               if(currForm->next == NULL){
+                  create_next_form(indent);
+               } else {
+                   
+                   // add the parent to return to (FILO)
+                   if(idt == NULL){
+                       idt = malloc(sizeof(item_t));
+                       memcpy(idt->value, currForm->id, sizeof(uint8_t));
+                       idt->next = NULL;
+                       idt->previous = NULL;
+                   }
+                   else {
+                       add_t(idt, currForm->id);
+                   }
+                   while(currForm->next != NULL){
+                       currForm = currForm->next;
+                   }
+                   create_next_form(indent);
+               }
+               printf("form created");
+               param = currForm->params;
            } else {
               first = false;
            }
+           ++indent;
         }
         if(endForm){
             --indent;
 
-            if(indent >= 1)
+            if(indent > 0)
                 lookParam = true;
             
             else if(indent < 0) {
@@ -201,8 +217,9 @@ int form_representation(){
                 bool found = false;
                 for(int i = 0; i < 26; i++){
                     if(strcmp(tokens[i].token, ch) == 0){
-                        printf("Found: %s %hhu\n", tokens[i].token, tokens[i].code);
-                        strcpy(currForm->formName, ch);
+                        printf("\n Func Found: %s %hhu %hhu \n ", tokens[i].token, tokens[i].code, currFormId-1);
+                        printf("%s", ch);
+                        strcpy(currForm->formName, tokens[i].token);
                         found = true;
                     }
                 }

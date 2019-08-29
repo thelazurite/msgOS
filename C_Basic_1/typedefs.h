@@ -44,7 +44,7 @@ typedef struct token {
 
 typedef struct child { 
     struct child * prev;
-    uint8_t childId; 
+    uint8_t * id; 
     struct child * next;
 } child_t;
 
@@ -62,7 +62,7 @@ typedef struct form {
     uint8_t * id;
     char* formName;
     param_t * params;
-    child_t * childFormId;
+    child_t * childForm;
     struct form * next;
 } form_t;
 

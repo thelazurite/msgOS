@@ -50,3 +50,35 @@ item_char* delete(item_char* item){
     item->previous->next = item->next;
     free(item);
 }
+
+item_t* add_t(item_t* head, uint8_t * value){
+    bool isEntered = false;
+    item_t * current = head;
+    
+    while(!isEntered){
+        if(current->next == NULL){
+            current->next = malloc(sizeof(item_t));
+            current->next->value = value;
+            current->next->next = NULL;
+            current->next->previous = current;
+            isEntered = true;
+            break;
+        } else {
+            current = current->next;
+        }
+    }
+    
+    return head;
+}
+
+item_t* delete_t(uint8_t * value, item_t * head){
+    item_t * current = head;
+    while(current != NULL) {
+        if(current->value == value){
+            current->previous->next = current->next;
+            free(current);
+            break;
+        }
+        current = current->next;
+    }
+}
