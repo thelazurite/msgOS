@@ -66,6 +66,14 @@ typedef struct form {
     struct form * next;
 } form_t;
 
+typedef struct variable {
+    struct variable * prev;
+    char * variableName; 
+    uint8_t * scope;
+    bool * child;
+    struct variable * next;
+} variable_t;
+
 
 #ifdef __cplusplus
 }

@@ -38,22 +38,24 @@ extern "C" {
     #include <stdint.h>
     
     typedef struct item { 
-        struct item * previous; 
+        struct item * prev; 
         char * value;
         struct item * next; 
     } item_char;
 
     item_char* add(item_char* head, char * value);
-    item_char* delete(item_char* value);
+    void delete(item_char* value);
     
     typedef struct item_uint { 
-        struct item * previous; 
+        struct item_uint * prev; 
         uint8_t * value;
-        struct item * next; 
+        struct item_uint * next; 
     } item_t;
 
     item_t* add_t(item_t* head, uint8_t * value);
-    item_t* delete_t(uint8_t* value, item_t * head);
+    void delete_t(uint8_t* value, item_t * head);
+    item_t* pop_t(item_t*);
+    
     item_char* find(char* value);
     
 

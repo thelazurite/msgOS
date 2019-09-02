@@ -47,6 +47,9 @@ static item_char * data;
 static form_t * forms; 
 static form_t * currForm;
 
+static variable_t * variables;
+static variable_t * currVariable;
+
 static token_t types[9] = {
     { "FORM",       0x00 },
     { "FUNC",       0x01 },
@@ -92,7 +95,7 @@ static token_t tokens[28] = {
 
 void create_next_form(int * indent){
     // initialises the new form.
-    printf("\ncreating a form\n");
+    //printf("\ncreating a form\n");
     currForm->next = malloc(sizeof(form_t));
     currForm->next->prev = currForm;
     currForm->next->type = &types[0];
@@ -105,7 +108,7 @@ void create_next_form(int * indent){
     if(indent > 0) {
         // check if this is the first child.
         if(currForm->childForm == NULL){
-            printf("hit");
+            //printf("hit");
 
             currForm->childForm = malloc(sizeof(child_t));
             currForm->childForm->prev = NULL;
@@ -135,9 +138,9 @@ int form_representation(){
     
     bool lookForm = false;
     bool lookParam = false;
-    int *  indent = 0; 
+    int * indent = 0; 
 
-    item_t* idt;
+    item_t* idt = NULL;
     bool first = true;
     
     char* ch = malloc(sizeof(char*));
@@ -150,6 +153,11 @@ int form_representation(){
     forms->formName = malloc(sizeof(char*));
     forms->params = malloc(sizeof(param_t));
     ++currFormId;
+    
+    variables = malloc(sizeof(variable_t));
+    variables->prev = NULL;
+    variables->variableName = malloc(sizeof(char*));
+    currVariable = variables;
     
     currForm = forms;
     param_t * param = forms->params;
@@ -173,9 +181,10 @@ int form_representation(){
                        idt = malloc(sizeof(item_t));
                        memcpy(idt->value, currForm->id, sizeof(uint8_t));
                        idt->next = NULL;
-                       idt->previous = NULL;
+                       idt->prev = NULL;
                    }
                    else {
+                       printf("\n idt: %s", idt->value);
                        add_t(idt, currForm->id);
                    }
                    while(currForm->next != NULL){
@@ -183,7 +192,7 @@ int form_representation(){
                    }
                    create_next_form(indent);
                }
-               printf("form created");
+               //printf("form created");
                param = currForm->params;
            } else {
               first = false;
@@ -193,6 +202,15 @@ int form_representation(){
         if(endForm){
             --indent;
 
+            if(idt != NULL){
+                item_t* p = pop_t(idt);
+
+                while(currForm->id != p->value){
+                    //printf("%s", "hit");
+                    currForm = currForm->prev;
+                }
+            }
+            
             if(indent > 0)
                 lookParam = true;
             
@@ -200,10 +218,6 @@ int form_representation(){
                 printf("Unexpected closure");
                 return -1;
             }
-        }
-        
-        if(iter->next == NULL){
-            read = false;
         }
         
         if(lookForm && !startForm){
@@ -218,17 +232,18 @@ int form_representation(){
                 for(int i = 0; i < 26; i++){
                     if(strcmp(tokens[i].token, ch) == 0){
                         printf("\n Func Found: %s %hhu %hhu \n ", tokens[i].token, tokens[i].code, currFormId-1);
-                        printf("%s", ch);
                         strcpy(currForm->formName, tokens[i].token);
                         found = true;
+                        break;
                     }
                 }
                 if(found == false){
                     printf("\nCouldn't find %s \n", ch);
                     return -1;
-                }
+                } 
                 
                 ch = malloc(sizeof(char*));
+                //printf("%s", "\nREALLOC\n");
             }
         } else if(lookParam) {
             // reading a parameter that isn't const text.
@@ -237,6 +252,8 @@ int form_representation(){
             bool dbq = strcmp("\"",iter->value) == 0;
             // single quote
             bool sgq = strcmp("'", iter->value) == 0;
+            
+            //printf("\n rdp: %d dbq: %d sgq: %d\n", rdp, dbq, sgq);
                      
             if(dbq || sgq){ 
                 bool rdc = true;
@@ -250,7 +267,7 @@ int form_representation(){
                     bool csgq = strcmp("'", cCurr->value) == 0;
                     
                     if((dbq && cdbq) || (sgq && csgq)) {
-                        if(strcmp("\\",cCurr->previous->value) !=0){
+                        if(strcmp("\\",cCurr->prev->value) !=0){
                             rdc = false;
                         }
                     }
@@ -271,7 +288,7 @@ int form_representation(){
                 sprintf(ch, "%s%s", ch, iter->value);
             }
             
-            if(!rdp) {
+            if(!rdp || strcmp(iter->next->value, ")") == 0) {
                 bool empty = true;
                 for(int i = 0; i < len(ch); i++){
                     if(empty && ch[i] == ' ') {
@@ -290,20 +307,68 @@ int form_representation(){
                     {
                         param->constVal = malloc(sizeof(char*));
                         strcpy(param->constVal, ch);
-                        printf("Saved Param {%s} ", param->constVal);
+                        printf(" Saved Param {%s} ", param->constVal);
                     } else {
                         param->paramName = malloc(sizeof(char*));
-                        
                         strcpy(param->paramName, ch);
-                        printf("Saved ref Param {%s}_CRC_{%u}", param->paramName, compute_crc32(ch));
+                        
+                        if(strcmp(currForm->formName, "let") == 0 || strcmp(currForm->formName, "const") == 0 || strcmp(currForm->formName, "var") == 0) {
+                            
+                            printf("%s", "it's a variable");
+                            strcpy(currVariable->variableName, ch);
+                            
+                            currVariable->child = malloc(sizeof(bool));
+                            
+                            if(currForm->prev == NULL){
+                                currVariable->scope = 0x00;
+                                currVariable->child = false;
+                            } else if(*indent > 1) {
+                                currVariable->child = true;
+                                
+                                form_t * iter = forms;
+                                bool found = false;
+                                
+                                while(iter != NULL){
+                                    child_t * iter_child = iter->childForm;
+                                    if(iter_child != NULL){
+                                        while(iter_child != NULL){
+                                            if(iter_child->id == currForm->id) {
+                                                memcpy(currVariable->scope, iter->id, sizeof(uint8_t));
+                                                found = true;
+                                                break;
+                                            }
+                                            iter_child = iter_child->next;
+                                        }
+                                    }
+                                    if(found){
+                                        break;
+                                    }        
+                                    iter = iter->next;
+                                }
+                            } else {
+                                currVariable->scope = currForm->id;
+                                currVariable->child = false;
+                            }
+                            
+                            currVariable->next = malloc(sizeof(variable_t));
+                            currVariable->next->variableName = malloc(sizeof(char*));
+                            currVariable->next->prev = currVariable;
+                        }
+                        
+                        printf(" Saved ref Param {%s}_CRC_{%u}", param->paramName, compute_crc32(ch));
                     }
-                    
                 }
+                
                 ch = malloc(sizeof(char*));
             }
         }
         
-        iter = iter->next;
+        if(iter->next == NULL){
+            read = false;
+        } else {
+            iter = iter->next;
+            //printf("%s%s\n", "\nNEXTCHAR->", iter->value);
+        }
     }
     
     free(ch);
@@ -368,8 +433,8 @@ int main(int argc, char* argv[]) {
         printf("\nCompileStatus: %i\n", result);
         item_char* curr = data;
         while(curr) {
-            if(curr->previous != NULL)
-                free(curr->previous);
+            if(curr->prev != NULL)
+                free(curr->prev);
 
             free(curr->value);
             curr = curr->next;

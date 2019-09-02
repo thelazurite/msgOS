@@ -35,7 +35,7 @@ item_char* add(item_char* head, char * value){
             current->next = malloc(sizeof(item_char));
             current->next->value = value;
             current->next->next = NULL;
-            current->next->previous = current;
+            current->next->prev = current;
             isEntered = true;
             break;
         } else {
@@ -46,8 +46,8 @@ item_char* add(item_char* head, char * value){
     return head;
 }
 
-item_char* delete(item_char* item){
-    item->previous->next = item->next;
+void delete(item_char* item){
+    item->prev->next = item->next;
     free(item);
 }
 
@@ -60,7 +60,7 @@ item_t* add_t(item_t* head, uint8_t * value){
             current->next = malloc(sizeof(item_t));
             current->next->value = value;
             current->next->next = NULL;
-            current->next->previous = current;
+            current->next->prev = current;
             isEntered = true;
             break;
         } else {
@@ -71,14 +71,26 @@ item_t* add_t(item_t* head, uint8_t * value){
     return head;
 }
 
-item_t* delete_t(uint8_t * value, item_t * head){
+void delete_t(uint8_t * value, item_t * head){
     item_t * current = head;
     while(current != NULL) {
         if(current->value == value){
-            current->previous->next = current->next;
+            current->prev->next = current->next;
             free(current);
             break;
         }
         current = current->next;
     }
+}
+item_t* pop_t(item_t* head){
+    item_t * current = head;
+    
+    while(current->next != NULL) {
+        current = current->next;
+    }
+    
+    if(current->prev != NULL)
+        current->prev->next = NULL;
+
+    return current;
 }
